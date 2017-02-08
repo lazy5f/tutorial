@@ -1,7 +1,7 @@
-import sys
+import sys, os
 from random import randrange
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5 import QtCore, QtGui, QtWidgets, QtMultimedia
 from PyQt5.QtCore import Qt, QRectF
 
 # To show Qt framework messages.
@@ -9,11 +9,12 @@ QtCore.qInstallMessageHandler(lambda t, c, m: print(m))
 
 
 T_BLOCK, T_EMPTY, T_SNAKE, T_FRUIT = 0, 1, 2, 3
-S_READY, S_STARTED, S_TERMINATED = 0, 1, 2
+S_READY, S_NEXT, S_STARTED, S_DIE, S_COMPLETE = 0, 1, 2, 3, 4
 KD = {Qt.Key_Up: (-1, 0), Qt.Key_Down: (1, 0), Qt.Key_Left: (0, -1), Qt.Key_Right: (0, 1)}
 KK = {Qt.Key_Up:   {Qt.Key_Left, Qt.Key_Right}, Qt.Key_Down:  {Qt.Key_Left, Qt.Key_Right},
       Qt.Key_Left: {Qt.Key_Up, Qt.Key_Down},    Qt.Key_Right: {Qt.Key_Up, Qt.Key_Down}}
-S_TEXT = {S_READY: 'READY!', S_STARTED: '', S_TERMINATED: 'YOU DIED!'}
+S_TEXT = {S_READY: 'READY!', S_NEXT: 'NEXT LEVEL', S_STARTED: '',
+          S_DIE: 'YOU DIED!', S_COMPLETE: 'COMPLETED!'}
     
 
 class Sniek(QtWidgets.QWidget):
@@ -32,15 +33,22 @@ class Sniek(QtWidgets.QWidget):
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.tick)
         
+        self.sound1, self.sound2 = QtMultimedia.QSoundEffect(), QtMultimedia.QSoundEffect()
+        self.sound1.setSource(QtCore.QUrl.fromLocalFile('tick.wav'))
+        self.sound2.setSource(QtCore.QUrl.fromLocalFile('tick_f.wav'))
+        
+        self.bgm = QtMultimedia.QMediaPlayer()
+        self.bgm.setMedia(QtMultimedia.QMediaContent(QtCore.QUrl.fromLocalFile('bgm.mp3')))
+        self.bgm.setVolume(70)
+        self.bgm.play()
+        
+        self.level, self.goal = 1, 0
         self.get_ready()
     
     def get_ready(self):
-        self.state, self.d, self.d1, self.d2 = S_READY, Qt.Key_Up, None, None
-        self.score, self.extend = 0, 7
-        
         # Load map.
-        with open('1.map') as f:
-            f.readline()  # Skip setting.
+        with open('%d.map' % self.level) as f:
+            self.goal, self.intv0, self.intv1, self.intv_d, self.add, self.n_fruit = eval(f.readline())
             self.M = [[T_EMPTY if x == ' ' else T_BLOCK for x in list(l)]
                       for l in f.read().split('\n')]
         self.n, self.m = len(self.M) + 2, max(len(Mi) for Mi in self.M) + 2
@@ -49,10 +57,14 @@ class Sniek(QtWidgets.QWidget):
             Mi.extend([T_EMPTY] * (self.m - len(Mi) - 1) + [T_BLOCK])
         self.M.insert(0, [T_BLOCK] * self.m)
         self.M.append([T_BLOCK] * self.m)
-    
+        
         # Initialize snake.
         self.S = [(self.n - 2, self.m // 2)]
         self.M[self.S[0][0]][self.S[0][1]] = T_SNAKE
+        
+        # Etc.
+        self.state, self.d, self.d1, self.d2 = S_READY, Qt.Key_Up, None, None
+        self.score, self.extend = 0, self.add
     
     def paintEvent(self, e):
         painter = QtGui.QPainter()
@@ -80,7 +92,7 @@ class Sniek(QtWidgets.QWidget):
         painter.resetTransform()
         painter.setFont(QtGui.QFont('Arial', ts * 3))
         painter.setPen(QtGui.QPen(QtGui.QColor(255, 128, 128, 200)))
-        painter.drawText(ts * 2, ts * 4, str(self.score))
+        painter.drawText(ts * 2, ts * 4, 'L%d %d/%d' % (self.level, self.score, self.goal))
         painter.setFont(QtGui.QFont('Arial', ts * 5))
         painter.drawText(QRectF(0, 0, win_w, win_h), Qt.AlignCenter, S_TEXT[self.state])
         
@@ -98,19 +110,30 @@ class Sniek(QtWidgets.QWidget):
         elif e.key() == Qt.Key_Space:
             if self.state == S_READY:
                 self.lay_fruit()
-                self.timer.start(100)
+                self.timer.start(self.intv0)
+                self.bgm.setVolume(40)
+                self.bgm.setPosition(0)
                 self.state = S_STARTED
             
-            elif self.state == S_TERMINATED:
+            elif self.state == S_NEXT:
+                self.level += 1
                 self.get_ready()
-                self.update()
+                self.state = S_READY
+            
+            elif self.state == S_DIE or self.state == S_COMPLETE:
+                self.level = 1
+                self.get_ready()
+            
+            self.update()
     
     def lay_fruit(self):
-        while True:
-            i, j = randrange(self.n), randrange(self.m)
-            if self.M[i][j] == T_EMPTY:
-                self.M[i][j] = T_FRUIT
-                break
+        if (self.score % self.n_fruit) == 0:
+            f = 0
+            while f < self.n_fruit:
+                i, j = randrange(self.n), randrange(self.m)
+                if self.M[i][j] == T_EMPTY:
+                    self.M[i][j] = T_FRUIT
+                    f += 1
     
     def tick(self):
         # Handle key press.
@@ -121,29 +144,47 @@ class Sniek(QtWidgets.QWidget):
         i, j = self.S[0][0] + KD[self.d][0], self.S[0][1] + KD[self.d][1]
         
         # Check next tile.
-        if self.M[i][j] == T_BLOCK or self.M[i][j] == T_SNAKE:
+        if i >= 0 and (self.M[i][j] == T_BLOCK or self.M[i][j] == T_SNAKE):
+            self.bgm.setVolume(60)
+            self.bgm.setPosition(0)
             self.timer.stop()
-            self.state = S_TERMINATED
+            self.state = S_DIE
         
         else:
             # Check fruit.
             if self.M[i][j] == T_FRUIT:
                 self.score += 1
-                self.extend += 7
-                self.lay_fruit()
-                self.timer.setInterval(max(10, self.timer.interval() * 0.95))
-            
-            # Add first piece
-            self.S.insert(0, (i, j))
-            self.M[i][j] = T_SNAKE
+                self.extend += self.add
+                if self.score < self.goal:
+                    self.lay_fruit()
+                else:
+                    self.M[0][self.m // 2] = T_EMPTY
+                self.timer.setInterval(max(self.intv1, self.timer.interval() * self.intv_d))
             
             # Erase last piece.
             if self.extend > 0:
+                self.sound2.play()
                 self.extend -= 1
             else:
-                i, j = self.S.pop()
-                self.M[i][j] = T_EMPTY
+                self.sound1.play()
+                i1, j1 = self.S.pop()
+                self.M[i1][j1] = T_EMPTY
             
+            # Add first piece or check completed.
+            if i >= 0:
+                # Add first piece
+                self.S.insert(0, (i, j))
+                self.M[i][j] = T_SNAKE
+            else:
+                if self.S:
+                    self.timer.setInterval(10)
+                else:
+                    self.timer.stop()
+                    if os.path.isfile('%s.map' % (self.level + 1)):
+                        self.state = S_NEXT
+                    else:
+                        self.state = S_COMPLETE
+        
         self.repaint()
 
 

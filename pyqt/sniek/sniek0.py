@@ -3,7 +3,7 @@ import sys
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import Qt
 
-# To show Qt messages.
+# To show Qt framework messages.
 QtCore.qInstallMessageHandler(lambda t, c, m: print(m))
 
 
@@ -26,7 +26,6 @@ app = QtWidgets.QApplication(sys.argv)
 
 s = Sniek()
 s.setWindowTitle('Sniek')
-s.resize(400, 400)
 s.show()
 
 sys.exit(app.exec_())
