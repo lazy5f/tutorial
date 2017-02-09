@@ -2,6 +2,9 @@ import sys
 
 from PyQt5 import QtCore, QtWidgets
 
+# To show Qt framework messages.
+QtCore.qInstallMessageHandler(lambda t, c, m: print(m))
+
 
 class Calculator(QtWidgets.QWidget):
     
