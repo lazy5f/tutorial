@@ -1,14 +1,15 @@
 """
-D: all possible moves
+Slide puzzle using console
 
-T: tiles
-xr, xc: index of empty tile (None)
+T[r][c]: tiles at row r and column c
+xr, xc: row and colume of empty tile (None)
 r: number of random moves for initial shuffle
 """
 
 from random import choice
 
 
+# All possible moves
 D = [(-1, 0), (1, 0), (0, -1), (0, 1)]
 
 
@@ -18,34 +19,34 @@ r = 5
 
 # Shuffle initially.
 for _ in range(r):
+    # Select randomly a tile at (tr, tc) to move, 
     while True:
         dr, dc = choice(D)
-        xr1, xc1 = xr + dr, xc + dc
-        if 0 <= xr1 < 3 and 0 <= xc1 < 3:
+        tr, tc = xr + dr, xc + dc
+        if 0 <= tr < 3 and 0 <= tc < 3:
             break
     
-    T[xr][xc], T[xr1][xc1], xr, xc = T[xr1][xc1], None, xr1, xc1
+    # Move a tile at (tr, tc) to (xr, xc).
+    T[xr][xc], T[tr][tc], xr, xc = T[tr][tc], None, tr, tc
 
 
 # Do moves until completed.
 while T != [[0, 1, 2], [3, 4, 5], [6, 7, None]]:
     # Print tiles.
     for r in range(3):
-        for c in range(3):
-            print(' ' if r == xr and c == xc else T[r][c], end=' ')
-        print()
+        print(' '.join(' ' if T[r][c] is None else str(T[r][c]) for c in range(3)))
     
     # Get tile for move.
-    m = eval(input())
+    m = eval(input('Tile number to move? '))
     
-    # Find and move tile.
+    # Find input tile at (tr, tc) and move it to (xr, tc).
     for dr, dc in D:
-        xr1, xc1 = xr + dr, xc + dc
-        if 0 <= xr1 < 3 and 0 <= xc1 < 3 and T[xr1][xc1] is m:
-            T[xr][xc], T[xr1][xc1], xr, xc = T[xr1][xc1], None, xr1, xc1
+        tr, tc = xr + dr, xc + dc
+        if 0 <= tr < 3 and 0 <= tc < 3 and T[tr][tc] is m:
+            T[xr][xc], T[tr][tc], xr, xc = T[tr][tc], None, tr, tc
             break
     else:
-        print('Incorrect')
+        print('Invalid input')
 
 
 print('Good!')
