@@ -1,5 +1,6 @@
 """
-All enumeration solution to https://www.acmicpc.net/problem/1107
+Recursive solution (considering small amount of possible channels) to
+  https://www.acmicpc.net/problem/1107
 
 z: number of minium pushes
 """
@@ -51,12 +52,10 @@ if len(B) > 0:
         b0_plus = B[1] if B[0] == 0 else B[0]  # minimum button greater than 0
         c = b0_plus * 10**len(Na) + sum(B[0] * 10**q for q in range(len(Na)))
         z = min(z, len(str(c)) + c - N)
-        display('B', c, len(str(c)) + c - N)
         
         if len(Na) > 1:
             c = sum(B[-1] * 10**q for q in range(len(Na) - 1))
             z = min(z, len(str(c)) + N - c)
-            display('B', c, len(str(c)) + N - c)
         
         z = min(z, min_push(0, len(Na) - 1))
 

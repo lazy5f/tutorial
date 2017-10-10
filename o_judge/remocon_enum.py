@@ -1,6 +1,5 @@
 """
-Recursive solution (considering small amount of possible channels) to
-  https://www.acmicpc.net/problem/1107
+All enumeration solution to https://www.acmicpc.net/problem/1107
 
 z: number of minimum pushes
 """
